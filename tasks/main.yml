@@ -1,0 +1,37 @@
+---
+# Скачивание rpm пакета vector для установки
+- name: Get Vector distrib
+  ansible.builtin.get_url:
+    url: "https://packages.timber.io/vector/0.X/vector-{{ vector_version }}-1.{{ vector_architecture }}.rpm"
+    dest: "./vector-{{ vector_version }}-1.{{ vector_architecture }}.rpm"
+    mode: "0755"
+# Установка rpm пакета vector
+- name: Install Vector packages
+  become: true
+  ansible.builtin.yum:
+    name: vector-{{ vector_version }}-1.{{ vector_architecture }}.rpm
+  notify: Start Vector service
+# Создание файла конфигурации для vector. Сама конфигурация не претендует на рабочую, но пример взят с офф.документации vector
+- name: Vector | Template config
+  become: true
+  ansible.builtin.template:
+    src: vector.toml.yml
+    dest: /etc/vector/vector.yaml
+    mode: "0644"
+    owner: "{{ ansible_user_id }}"
+    group: "{{ ansible_user_gid }}"
+    validate: vector validate --no-environment --config-yaml %s
+- name: Vector | Create systed unit
+  become: true
+  ansible.builtin.template:
+    src: vector.service.j2
+    dest: /etc/systemd/system/vector.service
+    mode: "0644"
+    owner: "{{ ansible_user_id }}"
+    group: "{{ ansible_user_gid }}"
+- name: Vector | Start Service
+  become: true
+  ansible.builtin.systemd:
+    name: vector
+    state: started
+    daemon_reload: true
